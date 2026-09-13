@@ -307,7 +307,9 @@ function Modal({
                            "https://script.google.com/macros/s/AKfycbz7mt1KqKGzon15JgdNxUm5Zy7MpUjpNpP-pxVOGLiD5F3B6FNAZK_WqC4ZEk4ZS-JMLg/exec",
                            {
                               method: "POST",
-                              headers: { "Content-Type": "application/json" },
+                              headers: {
+                                 "Content-Type": "text/plain;charset=utf-8",
+                              },
                               body: JSON.stringify({
                                  nombre: invitado
                                     ? `${invitado.nombre} ${invitado.apellidos}`.trim()
@@ -317,6 +319,7 @@ function Modal({
                               }),
                            },
                         );
+                        const resultado = await response.json();
                         if (!response.ok) throw new Error("No se pudo guardar");
                         setRsvpStatus("success");
                         formElement.reset();
