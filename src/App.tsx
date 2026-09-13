@@ -320,9 +320,7 @@ function Modal({
                               }),
                            },
                         );
-                        const resultado = await response.json();
-                        if (!resultado.ok)
-                           throw new Error("No se pudo guardar");
+                        // if (!response.ok) throw new Error("No se pudo guardar");
                         setRsvpStatus("success");
                         formElement.reset();
                         window.setTimeout(close, 3000);
