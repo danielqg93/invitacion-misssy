@@ -11,8 +11,7 @@
    --ink: #484742;
    --sand: #a58c6a;
    --cream: #f7f2ed;
-   --missyphoto: url("http://localhost:5173//img/missy.jpg");
-   /* --missyphoto: url("https://mwmzm1lq-5173.brs.devtunnels.ms/img/missy.jpg"); */
+   --missyphoto: url("/invitacion-misssy/img/missy.jpg");
 }
 * {
    box-sizing: border-box;
