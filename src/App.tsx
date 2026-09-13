@@ -43,8 +43,7 @@ declare global {
    }
 }
 
-const ASSET_IMG = "http://localhost:5173/img";
-// const ASSET_IMG = "https://mwmzm1lq-5173.brs.devtunnels.ms/img";
+const ASSET_IMG = `${import.meta.env.BASE_URL}img`;
 
 type ModalName =
    | "welcome"
