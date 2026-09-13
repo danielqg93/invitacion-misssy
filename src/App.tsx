@@ -413,6 +413,7 @@ function App() {
    const [welcomeClosed, setWelcomeClosed] = useState(false);
    const [slide, setSlide] = useState(0);
    const [galleryOpen, setGalleryOpen] = useState(false);
+   const touchStartX = useRef<number | null>(null);
    const [musicControlsVisible, setMusicControlsVisible] = useState(false);
    const [isMusicPlaying, setIsMusicPlaying] = useState(false);
    const playerRef = useRef<{
@@ -492,6 +493,26 @@ function App() {
       `${ASSET_IMG}/galeria/11.jpg`,
    ];
    const open = (name: ModalName) => setModal(name);
+
+   const changeSlide = (direction: 1 | -1) => {
+      setSlide(
+         (current) => (current + gallery.length + direction) % gallery.length,
+      );
+   };
+
+   const handleGalleryTouchStart = (event: React.TouchEvent) => {
+      touchStartX.current = event.touches[0]?.clientX ?? null;
+   };
+
+   const handleGalleryTouchEnd = (event: React.TouchEvent) => {
+      if (touchStartX.current === null) return;
+
+      const distance = event.changedTouches[0].clientX - touchStartX.current;
+      touchStartX.current = null;
+
+      if (Math.abs(distance) < 45) return;
+      changeSlide(distance < 0 ? 1 : -1);
+   };
 
    const handleMusicEnter = () => {
       setMusicControlsVisible(true);
@@ -782,9 +803,8 @@ function App() {
                </div>
                <div className="gallery-shell">
                   <button
-                     onClick={() =>
-                        setSlide((slide + gallery.length - 1) % gallery.length)
-                     }
+                     type="button"
+                     onClick={() => changeSlide(-1)}
                      aria-label="Foto anterior"
                   >
                      ‹
@@ -793,6 +813,8 @@ function App() {
                      type="button"
                      className="gallery-image-button"
                      onClick={() => setGalleryOpen(true)}
+                     onTouchStart={handleGalleryTouchStart}
+                     onTouchEnd={handleGalleryTouchEnd}
                      aria-label={`Ver foto ${slide + 1} en grande`}
                   >
                      <img
@@ -802,7 +824,8 @@ function App() {
                      />
                   </button>
                   <button
-                     onClick={() => setSlide((slide + 1) % gallery.length)}
+                     type="button"
+                     onClick={() => changeSlide(1)}
                      aria-label="Foto siguiente"
                   >
                      ›
@@ -826,11 +849,18 @@ function App() {
                   role="dialog"
                   aria-modal="true"
                   aria-label={`Foto ${slide + 1} de ${gallery.length}`}
-                  onMouseDown={() => setGalleryOpen(false)}
+                  onMouseDown={(event) => {
+                     if (event.target === event.currentTarget) {
+                        setGalleryOpen(false);
+                     }
+                  }}
+                  onTouchStart={handleGalleryTouchStart}
+                  onTouchEnd={handleGalleryTouchEnd}
                >
                   <button
                      type="button"
                      className="lightbox-close"
+                     onMouseDown={(event) => event.stopPropagation()}
                      onClick={() => setGalleryOpen(false)}
                      aria-label="Cerrar foto ampliada"
                   >
@@ -841,11 +871,9 @@ function App() {
                      className="lightbox-nav lightbox-prev"
                      onClick={(event) => {
                         event.stopPropagation();
-                        setSlide(
-                           (current) =>
-                              (current + gallery.length - 1) % gallery.length,
-                        );
+                        changeSlide(-1);
                      }}
+                     onMouseDown={(event) => event.stopPropagation()}
                      aria-label="Foto anterior"
                   >
                      ‹
@@ -860,8 +888,9 @@ function App() {
                      className="lightbox-nav lightbox-next"
                      onClick={(event) => {
                         event.stopPropagation();
-                        setSlide((current) => (current + 1) % gallery.length);
+                        changeSlide(1);
                      }}
+                     onMouseDown={(event) => event.stopPropagation()}
                      aria-label="Foto siguiente"
                   >
                      ›

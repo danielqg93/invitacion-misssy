@@ -583,6 +583,7 @@ footer h2 {
    border: 0;
    background: transparent;
    cursor: zoom-in;
+   touch-action: pan-y;
 }
 .gallery-shell img {
    height: 100%;
@@ -651,7 +652,11 @@ footer h2 {
    top: 50%;
    transform: translateY(-50%);
    font: 58px "Cormorant Garamond";
+   min-width: 52px;
+   min-height: 64px;
    padding: 14px;
+   z-index: 1;
+   touch-action: manipulation;
 }
 .lightbox-prev {
    left: 18px;
