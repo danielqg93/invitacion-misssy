@@ -85,7 +85,8 @@ const invitadosRegistrados = invitados as Invitado[];
 const eventos = itinerario as ItinerarioItem[];
 
 function obtenerInvitado(): Invitado | null {
-   const codigo = window.location.pathname.split("/").filter(Boolean)[0];
+   const hash = window.location.hash.replace(/^#\/?/, "").trim();
+   const codigo = hash.split("/").filter(Boolean)[0] || "";
    if (!codigo) return null;
 
    return (
