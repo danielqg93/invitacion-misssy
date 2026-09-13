@@ -302,17 +302,20 @@ function Modal({
                      const form = new FormData(formElement);
 
                      try {
-                        const response = await fetch("/api/confirmaciones", {
-                           method: "POST",
-                           headers: { "Content-Type": "application/json" },
-                           body: JSON.stringify({
-                              nombre: invitado
-                                 ? `${invitado.nombre} ${invitado.apellidos}`.trim()
-                                 : "Invitado sin código",
-                              asistira: form.get("asistira") === "si",
-                              mensaje: form.get("mensaje"),
-                           }),
-                        });
+                        const response = await fetch(
+                           "https://script.google.com/macros/s/AKfycbz7mt1KqKGzon15JgdNxUm5Zy7MpUjpNpP-pxVOGLiD5F3B6FNAZK_WqC4ZEk4ZS-JMLg/exec",
+                           {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                 nombre: invitado
+                                    ? `${invitado.nombre} ${invitado.apellidos}`.trim()
+                                    : "Invitado sin código",
+                                 asistira: form.get("asistira") === "si",
+                                 mensaje: form.get("mensaje"),
+                              }),
+                           },
+                        );
                         if (!response.ok) throw new Error("No se pudo guardar");
                         setRsvpStatus("success");
                         formElement.reset();
