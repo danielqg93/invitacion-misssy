@@ -72,10 +72,7 @@ function confirmationsApi(
 
 // https://vite.dev/config/
 export default defineConfig({
-<<<<<<< HEAD
    base: process.env.VITE_BASE_PATH || "/",
-=======
->>>>>>> 4f9103085559538317116122cc4b42f193b1ba7d
    plugins: [
       react(),
       {
