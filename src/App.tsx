@@ -307,6 +307,7 @@ function Modal({
                            "https://script.google.com/macros/s/AKfycbz7mt1KqKGzon15JgdNxUm5Zy7MpUjpNpP-pxVOGLiD5F3B6FNAZK_WqC4ZEk4ZS-JMLg/exec",
                            {
                               method: "POST",
+                              mode: "no-cors",
                               headers: {
                                  "Content-Type": "text/plain;charset=utf-8",
                               },
