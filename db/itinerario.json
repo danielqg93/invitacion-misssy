@@ -1,0 +1,52 @@
+[
+    {
+        "hour": "02:00 pm",
+        "event": "Recepción",
+        "icon": "pin"
+    },
+    {
+        "hour": "02:30 pm",
+        "event": "Taller de pintura y bandejas sensoriales",
+        "icon": "paint"
+    },
+    {
+        "hour": "03:00 pm",
+        "event": "Ingreso de la cumpleañera",
+        "icon": "heart"
+    },
+    {
+        "hour": "03:15 pm",
+        "event": "Primer baile de la cumpleañera",
+        "icon": "music"
+    },
+    {
+        "hour": "04:00 pm",
+        "event": "Show infantil",
+        "icon": "music"
+    },
+    {
+        "hour": "05:00 pm",
+        "event": "Carritos snacks y refrigerio",
+        "icon": "food"
+    },
+    {
+        "hour": "05:30 pm",
+        "event": "Hora loca",
+        "icon": "party"
+    },
+    {
+        "hour": "06:00 pm",
+        "event": "Piñata",
+        "icon": "balloon"
+    },
+    {
+        "hour": "07:00 pm",
+        "event": "Entrega de sorpresas",
+        "icon": "gift"
+    },
+    {
+        "hour": "08:00 pm",
+        "event": "Cierre de la celebración",
+        "icon": "check"
+    }
+]

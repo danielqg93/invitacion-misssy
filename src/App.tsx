@@ -1,8 +1,50 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import invitados from "../db/invitados.json";
+import itinerario from "../db/itinerario.json";
 
+const CUMPLEANERA = "Missy";
 const ASSET = "https://fixdate.io/modelo-invitacion/74/img";
 
+declare global {
+   interface Window {
+      YT?: {
+         Player: new (
+            element: HTMLElement | string,
+            options: {
+               height?: string;
+               width?: string;
+               videoId?: string;
+               playerVars?: Record<string, number | string>;
+               events?: {
+                  onReady?: (event: {
+                     target: {
+                        playVideo: () => void;
+                        pauseVideo: () => void;
+                     };
+                  }) => void;
+                  onStateChange?: (event: { data: number }) => void;
+               };
+            },
+         ) => {
+            playVideo: () => void;
+            pauseVideo: () => void;
+            destroy: () => void;
+            addEventListener: (
+               event: string,
+               callback: (event: { data: number }) => void,
+            ) => void;
+         };
+         PlayerState?: {
+            PLAYING: number;
+            PAUSED: number;
+         };
+      };
+      onYouTubeIframeAPIReady?: () => void;
+   }
+}
+
 const ASSET_IMG = "http://localhost:5173/img";
+// const ASSET_IMG = "https://mwmzm1lq-5173.brs.devtunnels.ms/img";
 
 type ModalName =
    | "welcome"
@@ -18,11 +60,42 @@ type IconName =
    | "pin"
    | "check"
    | "music"
+   | "paint"
+   | "food"
+   | "party"
+   | "balloon"
    | "dress"
    | "info"
    | "gift"
    | "instagram"
    | "heart";
+
+type Invitado = {
+   nombre: string;
+   apellidos: string;
+   codigoInvitacion: string;
+};
+
+type ItinerarioItem = {
+   hour: string;
+   event: string;
+   icon: IconName;
+};
+
+const invitadosRegistrados = invitados as Invitado[];
+const eventos = itinerario as ItinerarioItem[];
+
+function obtenerInvitado(): Invitado | null {
+   const codigo = window.location.pathname.split("/").filter(Boolean)[0];
+   if (!codigo) return null;
+
+   return (
+      invitadosRegistrados.find(
+         (invitado) =>
+            invitado.codigoInvitacion.toUpperCase() === codigo.toUpperCase(),
+      ) ?? null
+   );
+}
 
 function Icon({ name }: { name: IconName }) {
    const common = {
@@ -56,6 +129,30 @@ function Icon({ name }: { name: IconName }) {
             <path d="M9 18V5l10-2v13M9 9l10-2" />
             <circle cx="6" cy="18" r="3" />
             <circle cx="16" cy="16" r="3" />
+         </>
+      ),
+      paint: (
+         <>
+            <path d="m14 4 6 6-9.5 9.5a2.8 2.8 0 0 1-4-4L16 6Z" />
+            <path d="m13 5 6 6M5.5 19.5c-.7 1.7-2.2 2.5-3.5 2.5 0-1.6.7-3 2.5-3.7" />
+         </>
+      ),
+      food: (
+         <>
+            <path d="M6 3v7M4 3v4a2 2 0 0 0 4 0V3M6 10v11" />
+            <path d="M14 3v18M14 3c3 1 5 3.5 5 6h-5" />
+         </>
+      ),
+      party: (
+         <>
+            <path d="m12 3 1.2 3.2L16 7.5l-2.8 1.3L12 12l-1.2-3.2L8 7.5l2.8-1.3L12 3Z" />
+            <path d="m5 13 .8 2.2L8 16l-2.2.8L5 19l-.8-2.2L2 16l2.2-.8L5 13ZM19 13l.6 1.6L21 15l-1.4.4L19 17l-.6-1.6L17 15l1.4-.4L19 13Z" />
+         </>
+      ),
+      balloon: (
+         <>
+            <path d="M12 3a6 7 0 0 1 6 7c0 3.6-2.7 6-6 6s-6-2.4-6-6a6 7 0 0 1 6-7Z" />
+            <path d="M10 15.5 12 21l2-5.5M12 21v-2" />
          </>
       ),
       dress: (
@@ -105,11 +202,13 @@ function Button({
    onClick,
    href,
    light = false,
+   type = "button",
 }: {
    children: React.ReactNode;
    onClick?: () => void;
    href?: string;
    light?: boolean;
+   type?: "button" | "submit";
 }) {
    const className = `pill ${light ? "pill-light" : ""}`;
    return href ? (
@@ -122,7 +221,7 @@ function Button({
          {children}
       </a>
    ) : (
-      <button className={className} type="button" onClick={onClick}>
+      <button className={className} type={type} onClick={onClick}>
          {children}
       </button>
    );
@@ -141,13 +240,15 @@ function FloralMark() {
 function Wave({
    color = "#fff",
    flip = false,
+   flip2 = false,
 }: {
    color?: string;
    flip?: boolean;
+   flip2?: boolean;
 }) {
    return (
       <svg
-         className={`wave ${flip ? "wave-flip" : ""}`}
+         className={`wave ${flip ? "wave-flip" : flip2 ? "wave-flip2" : ""}`}
          viewBox="0 0 1440 110"
          preserveAspectRatio="none"
          aria-hidden="true"
@@ -163,10 +264,15 @@ function Wave({
 function Modal({
    active,
    close,
+   invitado,
 }: {
    active: Exclude<ModalName, "welcome" | null>;
    close: () => void;
+   invitado: Invitado | null;
 }) {
+   const [rsvpStatus, setRsvpStatus] = useState<
+      "idle" | "saving" | "success" | "error"
+   >("idle");
    const title = {
       rsvp: "Confirmar Asistencia",
       song: "Sugerir Canción",
@@ -190,59 +296,74 @@ function Modal({
             <h2 id="modal-title">{title}</h2>
             {active === "rsvp" && (
                <form
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                      e.preventDefault();
-                     close();
+                     setRsvpStatus("saving");
+                     const formElement = e.currentTarget;
+                     const form = new FormData(formElement);
+
+                     try {
+                        const response = await fetch("/api/confirmaciones", {
+                           method: "POST",
+                           headers: { "Content-Type": "application/json" },
+                           body: JSON.stringify({
+                              nombre: invitado
+                                 ? `${invitado.nombre} ${invitado.apellidos}`.trim()
+                                 : "Invitado sin código",
+                              asistira: form.get("asistira") === "si",
+                              mensaje: form.get("mensaje"),
+                           }),
+                        });
+                        if (!response.ok) throw new Error("No se pudo guardar");
+                        setRsvpStatus("success");
+                        formElement.reset();
+                        window.setTimeout(close, 3000);
+                     } catch {
+                        setRsvpStatus("error");
+                     }
                   }}
                >
-                  <label>
-                     ¿Quién está confirmando? <b>*</b>
-                     <select required>
-                        <option value="">Selecciona un invitado</option>
-                        <option>Juan García</option>
-                        <option>Sofía García</option>
-                        <option>Mateo García</option>
-                     </select>
-                  </label>
                   <fieldset>
                      <legend>¿Asistes a la Celebración? *</legend>
                      <label className="inline">
-                        <input type="radio" name="attend" required /> Sí,
-                        asistiré
+                        <input
+                           type="radio"
+                           name="asistira"
+                           value="si"
+                           required
+                        />
+                        Sí, asistiré
                      </label>
                      <label className="inline">
-                        <input type="radio" name="attend" /> No asistiré
+                        <input type="radio" name="asistira" value="no" /> No
+                        asistiré
                      </label>
                   </fieldset>
                   <label>
-                     Restricciones alimentarias
-                     <textarea placeholder="Indícanos si necesitas algún menú especial..." />
+                     Mensaje para la cumpleañera (opcional)
+                     <textarea
+                        name="mensaje"
+                        placeholder="Puedes dejarle un mensaje de cariño"
+                     />
                   </label>
-                  <label>
-                     Mensaje para la quinceañera
-                     <textarea placeholder="Puedes dejarle un mensaje de cariño" />
-                  </label>
-                  <Button>ENVIAR CONFIRMACIÓN</Button>
+                  <Button type="submit">
+                     {rsvpStatus === "saving"
+                        ? "GUARDANDO..."
+                        : "ENVIAR CONFIRMACIÓN"}
+                  </Button>
+                  {rsvpStatus === "success" && (
+                     <p className="form-status success" role="status">
+                        ¡Gracias! Tu confirmación fue guardada.
+                     </p>
+                  )}
+                  {rsvpStatus === "error" && (
+                     <p className="form-status error" role="alert">
+                        No se pudo guardar. Inténtalo nuevamente.
+                     </p>
+                  )}
                </form>
             )}
-            {active === "song" && (
-               <form
-                  onSubmit={(e) => {
-                     e.preventDefault();
-                     close();
-                  }}
-               >
-                  <label>
-                     Tu nombre
-                     <input required placeholder="Nombre" />
-                  </label>
-                  <label>
-                     Canción sugerida
-                     <input required placeholder="Canción y artista" />
-                  </label>
-                  <Button>ENVIAR CANCIÓN</Button>
-               </form>
-            )}
+
             {active === "dress" && (
                <div className="modal-copy">
                   <Icon name="dress" />
@@ -256,10 +377,12 @@ function Modal({
             {active === "tips" && (
                <div className="modal-copy">
                   <Icon name="info" />
-                  <p>¡Llegá con ganas de bailar!</p>
+                  <p>
+                     Ven puntual, la fiesta no espera... !Y nosotros tampoco¡
+                  </p>
                   <span>
-                     La recepción comienza a las 17 hs. Te recomendamos llegar
-                     unos minutos antes.
+                     La recepción comienza a las 02:00 pm. Te recomendamos
+                     llegar unos minutos antes, para que no te pierdas de nada.
                   </span>
                </div>
             )}
@@ -279,17 +402,28 @@ function Modal({
 }
 
 function App() {
+   const invitado = obtenerInvitado();
    const [modal, setModal] = useState<ModalName>("welcome");
+   const [welcomeClosed, setWelcomeClosed] = useState(false);
    const [slide, setSlide] = useState(0);
-   const target = useMemo(
-      () => new Date(Date.now() + 39 * 86400000 + 21 * 3600000),
-      [],
-   );
+   const [galleryOpen, setGalleryOpen] = useState(false);
+   const [musicControlsVisible, setMusicControlsVisible] = useState(false);
+   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+   const playerRef = useRef<{
+      playVideo: () => void;
+      pauseVideo: () => void;
+      destroy: () => void;
+      addEventListener: (
+         event: string,
+         callback: (event: { data: number }) => void,
+      ) => void;
+   } | null>(null);
+   const target = useMemo(() => new Date(2026, 8, 26, 14, 0, 0), []);
    const [time, setTime] = useState({
-      days: 39,
-      hours: 20,
-      mins: 59,
-      secs: 49,
+      days: 24,
+      hours: 14,
+      mins: 0,
+      secs: 0,
    });
    useEffect(() => {
       const tick = () => {
@@ -307,277 +441,494 @@ function App() {
    }, [target]);
    useEffect(() => {
       const key = (e: KeyboardEvent) => {
-         if (e.key === "Escape") setModal(null);
+         if (e.key === "Escape") {
+            if (modal === "welcome") setWelcomeClosed(true);
+            setModal(null);
+            setGalleryOpen(false);
+         }
+         if (!galleryOpen) return;
+         if (e.key === "ArrowLeft") {
+            setSlide(
+               (current) => (current + gallery.length - 1) % gallery.length,
+            );
+         }
+         if (e.key === "ArrowRight") {
+            setSlide((current) => (current + 1) % gallery.length);
+         }
       };
       window.addEventListener("keydown", key);
       return () => window.removeEventListener("keydown", key);
-   }, []);
+   }, [galleryOpen, modal]);
+
+   useEffect(() => {
+      if (!welcomeClosed) return;
+
+      const timeoutId = window.setTimeout(() => {
+         setModal((current) => (current === null ? "tips" : current));
+      }, 15000);
+
+      return () => window.clearTimeout(timeoutId);
+   }, [welcomeClosed]);
 
    const gallery = [
-      `${ASSET}/galeria/1.jpg`,
-      `${ASSET}/galeria/2.jpg`,
-      `${ASSET}/galeria/4.jpg`,
+      `${ASSET_IMG}/galeria/0.1.jpg`,
+      `${ASSET_IMG}/galeria/0.jpg`,
+      `${ASSET_IMG}/galeria/1.jpg`,
+      `${ASSET_IMG}/galeria/2.jpg`,
+      `${ASSET_IMG}/galeria/3.jpg`,
+      `${ASSET_IMG}/galeria/4.jpg`,
+      `${ASSET_IMG}/galeria/5.jpg`,
+      `${ASSET_IMG}/galeria/6.jpg`,
+      `${ASSET_IMG}/galeria/7.jpg`,
+      `${ASSET_IMG}/galeria/8.jpg`,
+      `${ASSET_IMG}/galeria/9.jpg`,
+      `${ASSET_IMG}/galeria/10.jpg`,
+      `${ASSET_IMG}/galeria/11.jpg`,
    ];
    const open = (name: ModalName) => setModal(name);
 
+   const handleMusicEnter = () => {
+      setMusicControlsVisible(true);
+      setIsMusicPlaying(true);
+      setWelcomeClosed(true);
+      setModal(null);
+   };
+
+   const handleMusicSkip = () => {
+      setMusicControlsVisible(true);
+      setIsMusicPlaying(false);
+      setWelcomeClosed(true);
+      setModal(null);
+   };
+
+   const toggleMusic = () => {
+      const nextState = !isMusicPlaying;
+      setIsMusicPlaying(nextState);
+
+      if (!playerRef.current) return;
+
+      if (nextState) {
+         playerRef.current.playVideo();
+      } else {
+         playerRef.current.pauseVideo();
+      }
+   };
+
+   useEffect(() => {
+      if (!musicControlsVisible) return;
+
+      const setupPlayer = () => {
+         const container = document.getElementById("music-player-container");
+         if (!container || !window.YT || !window.YT.Player) return;
+
+         playerRef.current = new window.YT.Player(container, {
+            height: "1",
+            width: "1",
+            videoId: "MenfUqRi_gI",
+            playerVars: {
+               autoplay: isMusicPlaying ? 1 : 0,
+               loop: 1,
+               playlist: "MenfUqRi_gI",
+               controls: 0,
+               rel: 0,
+               modestbranding: 1,
+               playsinline: 1,
+            },
+            events: {
+               onReady: (event) => {
+                  if (isMusicPlaying) {
+                     event.target.playVideo();
+                  } else {
+                     event.target.pauseVideo();
+                  }
+               },
+               onStateChange: (event) => {
+                  const isPlaying =
+                     event.data === window.YT?.PlayerState?.PLAYING;
+                  setIsMusicPlaying(isPlaying);
+               },
+            },
+         });
+      };
+
+      const existingScript = document.querySelector(
+         'script[src="https://www.youtube.com/iframe_api"]',
+      );
+
+      if (window.YT && window.YT.Player) {
+         setupPlayer();
+         return;
+      }
+
+      if (!existingScript) {
+         const tag = document.createElement("script");
+         tag.src = "https://www.youtube.com/iframe_api";
+         document.body.appendChild(tag);
+      }
+
+      window.onYouTubeIframeAPIReady = () => {
+         setupPlayer();
+      };
+
+      return () => {
+         if (playerRef.current) {
+            playerRef.current.destroy();
+            playerRef.current = null;
+         }
+         if (window.onYouTubeIframeAPIReady) {
+            delete window.onYouTubeIframeAPIReady;
+         }
+      };
+   }, [musicControlsVisible, isMusicPlaying]);
+
    return (
       <main>
+         {musicControlsVisible && (
+            <>
+               <div className="hidden-music-player" aria-hidden="true">
+                  <div id="music-player-container" />
+               </div>
+               <button
+                  type="button"
+                  className="music-toggle"
+                  onClick={toggleMusic}
+                  aria-label={
+                     isMusicPlaying ? "Pausar música" : "Reproducir música"
+                  }
+               >
+                  {isMusicPlaying ? "❚❚" : "▶"}
+               </button>
+            </>
+         )}
+
          <section className="hero" id="inicio">
             <div className="hero-photo" />
             <div className="hero-tint" />
             <div className="hero-content reveal">
-               <div className="date">15.06.2026</div>
-               <h1>Florencia</h1>
-               <p>Mis 15 años</p>
+               <div className="date">26.09.2026</div>
+               <h1>{CUMPLEANERA}</h1>
+               <p>Mi primer añito</p>
             </div>
             <div className="scroll-mark" aria-hidden="true">
                <span>⌄</span>
             </div>
-            <Wave color="#fff" />
          </section>
+         <div className="content">
+            <Wave color="#fff" flip2 />
+            <section className="intro section-white">
+               <img
+                  className="flower-corner flower-one"
+                  src={`${ASSET_IMG}/nube.png`}
+                  alt=""
+               />
+               <div className="quote-mark">"</div>
+               <p className="quote">
+                  {" "}
+                  Nuestra pequeña conejita va a cumplir su{" "}
+                  <span style={{ fontWeight: "bold" }}>Primer Añito,</span> ven
+                  a festejar con nosotros!
+               </p>
+               <div className="intro-story">
+                  <div className="intro-story-image">
+                     <img src={`${ASSET_IMG}/conejita.png`} alt="" />
+                  </div>
+                  <div className="intro-story-copy">
+                     <p>El tiempo vuela...</p>
+                     <p>12 meses mágicos</p>
+                     <p>8760 horas encantadoras</p>
+                     <p>365 días apasionantes</p>
+                  </div>
+               </div>
 
-         <section className="intro section-white">
-            <img
-               className="flower-corner flower-one"
-               src={`${ASSET}/flores_Grupo01_C.png`}
-               alt=""
-            />
-            <div className="quote-mark">"</div>
-            <p className="quote">
-               Te espero para compartir la alegría de esa noche que será para mí
-               mágica, inolvidable y única.
-            </p>
-            <div className="quote-mark closing">"</div>
-            <FloralMark />
-            <div className="countdown-wrap">
-               <span>Falta</span>
-               <div className="countdown">
-                  {[
-                     [time.days, "días"],
-                     [time.hours, "hs"],
-                     [time.mins, "min"],
-                     [time.secs, "seg"],
-                  ].map(([n, l]) => (
-                     <div key={l}>
-                        <strong>{String(n).padStart(2, "0")}</strong>
-                        <small>{l}</small>
+               <div className="quote-mark closing">"</div>
+               <FloralMark />
+               <div className="countdown-wrap">
+                  <span>Falta</span>
+                  <div className="countdown">
+                     {[
+                        [time.days, "días"],
+                        [time.hours, "hs"],
+                        [time.mins, "min"],
+                        [time.secs, "seg"],
+                     ].map(([n, l]) => (
+                        <div key={l}>
+                           <strong>{String(n).padStart(2, "0")}</strong>
+                           <small>{l}</small>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </section>
+
+            <section className="guests blush-section">
+               <Wave color="#fff" flip />
+               <div className="guest-card reveal">
+                  <div className="guest-number">
+                     <img src={`${ASSET_IMG}/mariposa.png`} alt="Hola" />
+                  </div>
+                  <h3>INVITADO(A)</h3>
+                  <h1>{invitado?.nombre ?? "Missy"}</h1>
+                  <p>{invitado?.apellidos ?? ""}</p>
+               </div>
+               <p className="guest-note">
+                  Tu presencia es lo más importante.
+                  <br />
+                  ¡No faltes!
+               </p>
+               <Wave color="#fff" />
+            </section>
+            <section className="celebration section-white" id="celebracion">
+               <img
+                  className="flower-corner flower-two"
+                  src={`${ASSET}/flores_Grupo01_B.png`}
+                  alt=""
+               />
+               <div className="section-heading">
+                  <p>Será un día inolvidable y queremos vivirlo contigo.</p>
+                  <h2>Celebración</h2>
+                  <FloralMark />
+               </div>
+               <div className="event-grid">
+                  <article>
+                     <div className="line-icon">
+                        <Icon name="calendar" />
+                     </div>
+                     <h4>DÍA</h4>
+                     <p>Sábado 26 de Septiembre - 02:00 pm</p>
+                     <Button
+                        href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${CUMPLEANERA}+-+Mi+Primer+A%C3%B1ito&dates=20260926T190000Z/20260926T250000Z`}
+                     >
+                        AGENDAR
+                     </Button>
+                  </article>
+                  <article>
+                     <div className="line-icon">
+                        <Icon name="check" />
+                     </div>
+                     <h4>LUGAR</h4>
+                     <p>Hospedaje Casa Blanca</p>
+                     <Button onClick={() => open("rsvp")}>
+                        CONFIRMAR ASISTENCIA
+                     </Button>
+                  </article>
+                  <article>
+                     <div className="line-icon">
+                        <Icon name="pin" />
+                     </div>
+                     <h4>DIRECCIÓN</h4>
+                     <p style={{ marginBottom: "0" }}>
+                        Urb. Sol y Mar, Mz A lote 2 - Paita
+                     </p>
+                     <p
+                        style={{
+                           fontStyle: "italic",
+                           fontSize: ".9rem",
+                           marginBottom: "20px",
+                        }}
+                     >
+                        Referencia: A una cuadra de Plaza Vea
+                     </p>
+                     <Button href="https://maps.app.goo.gl/vMhXGmaD5KMtBjs19">
+                        ¿CÓMO LLEGAR?
+                     </Button>
+                  </article>
+               </div>
+            </section>
+
+            <section className="itinerary section-white" id="itinerario">
+               <Wave color="#fff" flip />
+               <div className="section-heading">
+                  <p>Estos son algunos momentos que compartiremos.</p>
+                  <h2>Itinerario</h2>
+                  <FloralMark />
+               </div>
+               <div className="timeline">
+                  {eventos.map(({ hour, event, icon }) => (
+                     <div className="timeline-item" key={hour}>
+                        <time>{hour}</time>
+                        <span className="timeline-dot" aria-hidden="true">
+                           <Icon name={icon} />
+                        </span>
+                        <p>{event}</p>
                      </div>
                   ))}
                </div>
-            </div>
-         </section>
+            </section>
 
-         <section className="guests blush-section">
-            <Wave color="#faf1fa" flip />
-            <div className="guest-card reveal">
-               <div className="guest-number">3</div>
-               <h3>INVITADOS</h3>
-               <p className="companion">(1 acompañante)</p>
-               <ul>
-                  <li>Juan García</li>
-                  <li>Sofía García</li>
-                  <li>Mateo García</li>
-               </ul>
-            </div>
-            <p className="guest-note">
-               Tu presencia es lo más importante.
-               <br />
-               ¡No faltes!
-            </p>
-            <Wave color="#fff" />
-         </section>
-
-         <section className="celebration section-white" id="celebracion">
-            <img
-               className="flower-corner flower-two"
-               src={`${ASSET}/flores_Grupo01_B.png`}
-               alt=""
-            />
-            <div className="section-heading">
-               <p>Será un día inolvidable y queremos vivirlo con vos.</p>
-               <h2>Celebración</h2>
-               <FloralMark />
-            </div>
-            <div className="event-grid">
-               <article>
-                  <div className="line-icon">
-                     <Icon name="calendar" />
-                  </div>
-                  <h4>DÍA</h4>
-                  <p>Sábado 15 de Junio - 17hs</p>
-                  <Button href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=Florencia+-+Mis+15+a%C3%B1os&dates=20261010T221000Z/20261011T060000Z">
-                     AGENDAR
-                  </Button>
-               </article>
-               <article>
-                  <div className="line-icon">
-                     <Icon name="check" />
-                  </div>
-                  <h4>LUGAR</h4>
-                  <p>Salón Avril</p>
-                  <Button onClick={() => open("rsvp")}>
+            <section className="rsvp-banner">
+               <Wave color="#fff" flip />
+               <div>
+                  <Icon name="check" />
+                  <h2>Confirmar Asistencia</h2>
+                  <p>Es importante que confirmes tu asistencia</p>
+                  <Button light onClick={() => open("rsvp")}>
                      CONFIRMAR ASISTENCIA
                   </Button>
-               </article>
-               <article>
-                  <div className="line-icon">
-                     <Icon name="pin" />
-                  </div>
-                  <h4>DIRECCIÓN</h4>
-                  <p>Av. Los Reartes 12 - Lima</p>
-                  <Button href="https://www.google.com/maps/search/?api=1&query=Av.+Los+Reartes+12+Lima">
-                     ¿CÓMO LLEGAR?
-                  </Button>
-               </article>
-            </div>
-         </section>
+               </div>
+               <Wave color="#fff" />
+            </section>
 
-         <section className="rsvp-banner">
-            <Wave color="#fff" flip />
-            <div>
-               <Icon name="check" />
-               <h2>Confirmar Asistencia</h2>
-               <p>Es importante que confirmes tu asistencia</p>
-               <Button light onClick={() => open("rsvp")}>
-                  CONFIRMAR ASISTENCIA
-               </Button>
-            </div>
-            <Wave color="#fff" />
-         </section>
-
-         <section className="gallery-section section-white" id="galeria">
-            <div className="section-heading">
-               <h2>Un recorrido de estos 15 años</h2>
-               <p>Junto a personas que son muy importantes en mi vida</p>
-               <FloralMark />
-            </div>
-            <div className="gallery-shell">
-               <button
-                  onClick={() =>
-                     setSlide((slide + gallery.length - 1) % gallery.length)
-                  }
-                  aria-label="Foto anterior"
-               >
-                  ‹
-               </button>
-               <img
-                  key={gallery[slide]}
-                  src={gallery[slide]}
-                  alt={`Recuerdo de Florencia ${slide + 1}`}
-               />
-               <button
-                  onClick={() => setSlide((slide + 1) % gallery.length)}
-                  aria-label="Foto siguiente"
-               >
-                  ›
-               </button>
-            </div>
-            <div className="dots">
-               {gallery.map((image, i) => (
+            <section className="gallery-section section-white" id="galeria">
+               <div className="section-heading">
+                  <h2>Un recorrido de mis primeros 11 meses</h2>
+                  <p>Junto a personas que son muy importantes en mi vida</p>
+                  <FloralMark />
+               </div>
+               <div className="gallery-shell">
                   <button
-                     key={image}
-                     className={i === slide ? "active" : ""}
-                     onClick={() => setSlide(i)}
-                     aria-label={`Ver foto ${i + 1}`}
-                  />
-               ))}
-            </div>
-         </section>
+                     onClick={() =>
+                        setSlide((slide + gallery.length - 1) % gallery.length)
+                     }
+                     aria-label="Foto anterior"
+                  >
+                     ‹
+                  </button>
+                  <button
+                     type="button"
+                     className="gallery-image-button"
+                     onClick={() => setGalleryOpen(true)}
+                     aria-label={`Ver foto ${slide + 1} en grande`}
+                  >
+                     <img
+                        key={gallery[slide]}
+                        src={gallery[slide]}
+                        alt={`Recuerdo de ${CUMPLEANERA} ${slide + 1}`}
+                     />
+                  </button>
+                  <button
+                     onClick={() => setSlide((slide + 1) % gallery.length)}
+                     aria-label="Foto siguiente"
+                  >
+                     ›
+                  </button>
+               </div>
+               <div className="dots">
+                  {gallery.map((image, i) => (
+                     <button
+                        key={image}
+                        className={i === slide ? "active" : ""}
+                        onClick={() => setSlide(i)}
+                        aria-label={`Ver foto ${i + 1}`}
+                     />
+                  ))}
+               </div>
+            </section>
 
-         <section className="party blush-section" id="fiesta">
-            <Wave color="#faf1fa" flip />
-            <div className="section-heading">
-               <h2>Fiesta</h2>
-               <p>
-                  Hagamos juntos una fiesta épica.
-                  <br />
-                  Aquí algunos detalles a tener en cuenta.
-               </p>
-               <FloralMark />
-            </div>
-            <div className="party-grid">
-               <article>
-                  <div className="circle-icon">
-                     <Icon name="music" />
-                  </div>
-                  <h3>Música</h3>
-                  <p>
-                     ¿Cuál es la canción que no debe faltar en la PlayList de la
-                     fiesta?
-                  </p>
-                  <Button onClick={() => open("song")}>SUGERIR CANCIÓN</Button>
-               </article>
-               <article>
-                  <div className="circle-icon">
-                     <Icon name="dress" />
-                  </div>
-                  <h3>Dress Code</h3>
-                  <p>
-                     Una orientación para
-                     <br />
-                     tu vestuario
-                  </p>
-                  <Button onClick={() => open("dress")}>VER MÁS</Button>
-               </article>
-               <article>
-                  <div className="circle-icon">
-                     <Icon name="info" />
-                  </div>
-                  <h3>Tips y Notas</h3>
-                  <p>
-                     Información adicional
-                     <br />
-                     para tener en cuenta
-                  </p>
-                  <Button onClick={() => open("tips")}>+ INFO</Button>
-               </article>
-            </div>
-            <Wave color="#fff" />
-         </section>
-
-         <section className="gifts section-white">
-            <div className="gift-icon">
-               <Icon name="gift" />
-            </div>
-            <h2>Regalos</h2>
-            <p>Si deseas regalarme algo más que tu hermosa presencia...</p>
-            <Button onClick={() => open("gifts")}>DATOS BANCARIOS</Button>
-         </section>
-
-         <section className="instagram-section">
-            <Wave color="#fff" flip />
-            <div className="insta-overlay">
-               <Icon name="instagram" />
-               <h2>Una gran fiesta junto a vos</h2>
-               <p>Comparte tus fotos y videos de este hermoso día</p>
-               <a
-                  href="https://www.instagram.com/"
-                  target="_blank"
-                  rel="noreferrer"
+            {galleryOpen && (
+               <div
+                  className="gallery-lightbox"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={`Foto ${slide + 1} de ${gallery.length}`}
+                  onMouseDown={() => setGalleryOpen(false)}
                >
-                  <strong>#15flor</strong>
-                  <span>VER EN INSTAGRAM</span>
-               </a>
-            </div>
-         </section>
+                  <button
+                     type="button"
+                     className="lightbox-close"
+                     onClick={() => setGalleryOpen(false)}
+                     aria-label="Cerrar foto ampliada"
+                  >
+                     ×
+                  </button>
+                  <button
+                     type="button"
+                     className="lightbox-nav lightbox-prev"
+                     onClick={(event) => {
+                        event.stopPropagation();
+                        setSlide(
+                           (current) =>
+                              (current + gallery.length - 1) % gallery.length,
+                        );
+                     }}
+                     aria-label="Foto anterior"
+                  >
+                     ‹
+                  </button>
+                  <img
+                     src={gallery[slide]}
+                     alt={`Recuerdo de ${CUMPLEANERA} ${slide + 1}`}
+                     onMouseDown={(event) => event.stopPropagation()}
+                  />
+                  <button
+                     type="button"
+                     className="lightbox-nav lightbox-next"
+                     onClick={(event) => {
+                        event.stopPropagation();
+                        setSlide((current) => (current + 1) % gallery.length);
+                     }}
+                     aria-label="Foto siguiente"
+                  >
+                     ›
+                  </button>
+                  <span className="lightbox-counter">
+                     {slide + 1} / {gallery.length}
+                  </span>
+               </div>
+            )}
 
-         <footer>
-            <h2>Florencia</h2>
-            <p>Mis 15 años</p>
-            <nav>
-               <button onClick={() => open("rsvp")}>
-                  Confirmar asistencia
-               </button>
-               <i>·</i>
-               <button onClick={() => open("song")}>Sugerir canción</button>
-               <i>·</i>
-               <a href="#celebracion">Agendar celebración</a>
-            </nav>
-            <div className="footer-rule" />
-            <small>
-               Desarrollado con <Icon name="heart" /> por <b>fixdate</b>
-            </small>
-         </footer>
+            <section className="party blush-section" id="fiesta">
+               <Wave color="#faf1fa" flip />
+               <div className="section-heading">
+                  <h2>Fiesta</h2>
+                  <p>
+                     Hagamos juntos una fiesta épica.
+                     <br />
+                     Aquí algunos detalles a tener en cuenta.
+                  </p>
+                  <FloralMark />
+               </div>
+               <div className="party-grid">
+                  <article>
+                     <div className="circle-icon">
+                        <Icon name="info" />
+                     </div>
+                     <h3>Tips y Notas</h3>
+                     <p>
+                        Información adicional
+                        <br />
+                        para tener en cuenta
+                     </p>
+                     <Button onClick={() => open("tips")}>+ INFO</Button>
+                  </article>
+               </div>
+               <Wave color="#fff" />
+            </section>
+
+            <section className="instagram-section">
+               <Wave color="#fff" flip />
+               <div className="insta-overlay">
+                  <Icon name="instagram" />
+                  <h2>Una gran fiesta junto a ti</h2>
+                  <p>Comparte tus fotos y videos de este hermoso día</p>
+                  <a
+                     href="https://photos.app.goo.gl/BovKMT4rCkVaCDok7"
+                     target="_blank"
+                     rel="noreferrer"
+                  >
+                     <strong>#missy1añito</strong>
+                     <span>COMPARTE TUS FOTOS AQUÍ</span>
+                  </a>
+               </div>
+            </section>
+
+            <footer>
+               <h2>{CUMPLEANERA}</h2>
+               <p>Mi primer añito</p>
+               <nav>
+                  <button onClick={() => open("rsvp")}>
+                     Confirmar asistencia
+                  </button>
+                  <i>·</i>
+                  <i>·</i>
+                  <a href="#celebracion">Agendar celebración</a>
+               </nav>
+               <div className="footer-rule" />
+               <small>
+                  Desarrollado con <Icon name="heart" /> por{" "}
+                  <b>Daniel Quezada</b>
+               </small>
+            </footer>
+         </div>
 
          {modal === "welcome" && (
             <div className="modal-backdrop welcome" role="presentation">
@@ -587,24 +938,25 @@ function App() {
                   aria-modal="true"
                   aria-labelledby="welcome-title"
                >
-                  <img src={`${ASSET}/adorno-modal-musica.png`} alt="" />
+                  <img src={`${ASSET_IMG}/conejita.jpeg`} alt="" />
                   <p>Bienvenid@ a la invitación de</p>
                   <h2 id="welcome-title">Missy</h2>
                   <span>La música de fondo es parte de la experiencia</span>
-                  <Button onClick={() => setModal(null)}>
+                  <Button onClick={handleMusicEnter}>
                      INGRESAR CON MÚSICA
                   </Button>
-                  <button
-                     className="text-button"
-                     onClick={() => setModal(null)}
-                  >
+                  <button className="text-button" onClick={handleMusicSkip}>
                      Ingresar sin música
                   </button>
                </div>
             </div>
          )}
          {modal && modal !== "welcome" && (
-            <Modal active={modal} close={() => setModal(null)} />
+            <Modal
+               active={modal}
+               close={() => setModal(null)}
+               invitado={invitado}
+            />
          )}
       </main>
    );

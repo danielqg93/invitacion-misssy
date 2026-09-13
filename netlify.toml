@@ -4,6 +4,12 @@
 [build]
   command = "bun run build"
   publish = "dist"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/confirmaciones"
+  to = "/.netlify/functions/confirmaciones"
+  status = 200
 
 [[redirects]]
   from = "/*"
