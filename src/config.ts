@@ -204,6 +204,8 @@ export const config = {
   },
 
   creditos: "Invitarte",
+  /** Página a la que lleva el texto "Invitarte" del pie. "" = sin enlace. */
+  creditosUrl: "https://invitarte-peru.com",
 
   imagenes: {
     /** Portada "clasica" en computadora (mejor horizontal). */

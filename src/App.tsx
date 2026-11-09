@@ -1514,7 +1514,19 @@ function App() {
           </nav>
           <div className="footer-rule" />
           <small>
-            Invitación hecha con 💗 por <b>{config.creditos}</b>
+            Invitación hecha con 💗 por{" "}
+            {config.creditosUrl ? (
+              <a
+                className="footer-creditos"
+                href={config.creditosUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <b>{config.creditos}</b>
+              </a>
+            ) : (
+              <b>{config.creditos}</b>
+            )}
           </small>
         </footer>
       </div>
