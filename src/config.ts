@@ -207,6 +207,16 @@ export const config = {
   /** Página a la que lleva el texto "Invitarte" del pie. "" = sin enlace. */
   creditosUrl: "https://invitarte-peru.com",
 
+  /**
+   * Aviso flotante "Demo · Personalizada · Cotízala" (esquina inferior izquierda).
+   * Ponlo en activo: false en la invitación real del cliente.
+   */
+  demo: {
+    activo: true,
+    paquete: "Personalizada",
+    cotizarUrl: "https://invitarte-peru.com/#cotiza",
+  },
+
   imagenes: {
     /** Portada "clasica" en computadora (mejor horizontal). */
     portada: u("1675130155886-6fe33665bd65", 2000),

@@ -1109,6 +1109,14 @@ function App() {
 
   return (
     <main>
+      {config.demo.activo && (
+        <div className="demo-aviso">
+          <span>Demo · {config.demo.paquete}</span>
+          <a href={config.demo.cotizarUrl} target="_top">
+            Cotízala
+          </a>
+        </div>
+      )}
       {musicControlsVisible && (
         <>
           <div className="hidden-music-player" aria-hidden="true">
